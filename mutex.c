@@ -78,7 +78,7 @@ int main(){
       planes[i].havingEmergency = TRUE;
     }
     else{
-      havingEmergency[i] = FALSE;
+      planes[i].havingEmergency = FALSE;
     }
   }
   
