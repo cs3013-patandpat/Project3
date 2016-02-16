@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -12,7 +13,7 @@ typedef int bool;
 #define numplanes 25
 #define chance_for_havingEmergency 8
 #define max_fuel 100
-#define min_arrival_fuel 35
+#define min_arrival_fuel 45
 #define critical_fuel 20
 #define taxi_time 3
 #define max_descend_time 10
@@ -27,6 +28,7 @@ typedef int bool;
  *   critical: Does the plane have a critical fuel level
  */
 typedef struct Plane{
+  int id;
   int fuel;
   int delay;
   bool inAirspace;
@@ -37,15 +39,17 @@ typedef struct Plane{
 // Function called in individual plane threads
 void plane_flying(int* ptrToID);
 
-// Mutex related variables
-pthread_mutex_t runway_mutex[runways];
-pthread_mutex_t something_open;
-pthread_cond_t runwayOpen;
+// Semaphore related variables
+sem_t runway_semaphore[runways];
+sem_t something_open;
 
 // Plane management variables
 bool runwayOccupied[runways];
 int runwaysFree = runways;
 Plane planes[numplanes];
+Plane lowFuelPriority[numplanes];
+int nextFuel = 0;
+int indexFuel = 0;
 int num_emergencies = 0;
 int num_critical_planes = 0;
 int planes_landed = 0;
@@ -59,15 +63,16 @@ int main(){
   srand((unsigned) time(&t));
   printf("Using seed %u.\n",(unsigned int)t);
   
-  //Establish mutexes for each runway
+  //Establish Semaphores for each runway
   pthread_t threads[numplanes];
   for(i = 0; i < runways; i++){
     runwayOccupied[i] = FALSE;
-    pthread_mutex_unlock(&runway_mutex[i]);
+    sem_init(&runway_semaphore[i],0,1);
   }
   
   //Create each plane & corresponding thread
   for(i = 0; i < numplanes; i++){
+    planes[i].id = i;
     planes[i].delay = i * (1 + rand()%3);
     planes[i].fuel = min_arrival_fuel + (rand() % (max_fuel - min_arrival_fuel));
     int* id = malloc(sizeof(int));
@@ -82,8 +87,8 @@ int main(){
     }
   }
   
-  //Indicate that at least one runway is open
-  pthread_mutex_unlock(&something_open);
+  //initialize that one runway is open
+  sem_init(&something_open,0,1);
   
   //First plane always arrives at 0s, must be manually initialized
   planes[0].inAirspace = TRUE;
@@ -107,6 +112,8 @@ int main(){
           if(planes[i].critical == FALSE){
             planes[i].critical = TRUE;
             num_critical_planes++;
+	    lowFuelPriority[nextFuel] = planes[i];
+	    nextFuel++;
             printf("Plane # %d is low on fuel!\n",i);
           }
         }
@@ -137,9 +144,9 @@ void plane_flying(int* ptrToID){
   //Idle until available runway
   while(finished == 0){
     if(num_emergencies == 0 || planes[id].havingEmergency){ //If no other planes are having an emergency OR this plane is having an emergency
-      if(num_critical_planes == 0 || planes[id].critical || planes[id].havingEmergency){ // ^^ *(emergency->fuel)
+      if(num_critical_planes == 0 || (planes[id].critical ) || planes[id].havingEmergency){ // ^^ *(emergency->fuel)
         for(i = 0;(i < runways) && (finished == 0); i++){ //Cycle through runways
-          if(pthread_mutex_trylock(&runway_mutex[i]) == 0) {  
+          if(sem_trywait(&runway_semaphore[i]) == 0) {
 			//Plane is landing
             planes[id].inAirspace = FALSE;
             
@@ -151,6 +158,7 @@ void plane_flying(int* ptrToID){
             //Handle critical vars
             if(planes[id].critical){
               num_critical_planes--;
+	      indexFuel++;
               planes[id].critical = FALSE;
             }
             
@@ -163,15 +171,14 @@ void plane_flying(int* ptrToID){
             planes_landed++;
             finished = TRUE;
             
-            //Unlok mutexes
-            pthread_mutex_unlock(&runway_mutex[i]);//release the mutex
-            pthread_cond_broadcast(&runwayOpen);
+            //Up the semaphore
+            sem_post(&runway_semaphore[i]);
+	    sem_post(&something_open);
+	    
           }
         }
         //none of the runways were open
-        pthread_cond_wait(&runwayOpen,&something_open);
-        //sleep for some time
-        pthread_mutex_unlock(&something_open);
+        sem_wait(&something_open);
       }
     }
   }

@@ -1,0 +1,22 @@
+Example when it breaks:
+
+Plane # 17 is low on fuel!
+Plane # 16 has cleared from runway 1.
+Plane # 14 has arrived.
+Plane # 6 is low on fuel!
+Plane # 7 is low on fuel!
+Plane # 15 has arrived.
+Plane # 23 has arrived.
+Plane # 23 is having an emergency.
+Plane # 23 is starting to descend on runway 1.
+Plane # 24 has arrived.
+Plane # 23 has landed and is now clearing from runway 1.
+Plane # 18 has arrived.
+Plane # 18 is having an emergency.
+Plane # 18 is starting to descend on runway 2.
+Plane # 23 has cleared from runway 1.
+Plane # 19 has arrived.
+Plane # 19 is having an emergency.
+Plane # 19 is starting to descend on runway 1.
+Plane # 17 has crashed.
+
