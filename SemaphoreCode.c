@@ -36,6 +36,8 @@ typedef struct Plane{
   bool critical;
 }Plane;
 
+void sortFuel(void);
+
 // Function called in individual plane threads
 void plane_flying(int* ptrToID);
 
@@ -48,8 +50,7 @@ bool runwayOccupied[runways];
 int runwaysFree = runways;
 Plane planes[numplanes];
 Plane lowFuelPriority[numplanes];
-int nextFuel = 0;
-int indexFuel = 0;
+int nextPriority = 0;
 int num_emergencies = 0;
 int num_critical_planes = 0;
 int planes_landed = 0;
@@ -84,8 +85,15 @@ int main(){
     }
     else{
       planes[i].havingEmergency = FALSE;
-    }
+    
+    bool sorted = false;
+    
+    lowFuelPriority[i] = planes[i];
   }
+
+//sort the planes by fuel level
+  sortFuel();
+
   
   //initialize that one runway is open
   sem_init(&something_open,0,1);
@@ -111,9 +119,6 @@ int main(){
         else if(planes[i].fuel < critical_fuel && planes[i].inAirspace){
           if(planes[i].critical == FALSE){
             planes[i].critical = TRUE;
-            num_critical_planes++;
-	    lowFuelPriority[nextFuel] = planes[i];
-	    nextFuel++;
             printf("Plane # %d is low on fuel!\n",i);
           }
         }
@@ -144,7 +149,7 @@ void plane_flying(int* ptrToID){
   //Idle until available runway
   while(finished == 0){
     if(num_emergencies == 0 || planes[id].havingEmergency){ //If no other planes are having an emergency OR this plane is having an emergency
-      if(num_critical_planes == 0 || (planes[id].critical ) || planes[id].havingEmergency){ // ^^ *(emergency->fuel)
+      if( ( lowFuelPriority[nextPriority].inAirspace == TRUE && lowFuelPriority[nextPriority].fuel == planes[id].fuel ) || planes[id].havingEmergency || lowFuelPriority[nextPriority].inAirspace == FALSE){ // ^^ *(emergency->fuel)
         for(i = 0;(i < runways) && (finished == 0); i++){ //Cycle through runways
           if(sem_trywait(&runway_semaphore[i]) == 0) {
 			//Plane is landing
@@ -158,7 +163,7 @@ void plane_flying(int* ptrToID){
             //Handle critical vars
             if(planes[id].critical){
               num_critical_planes--;
-	      indexFuel++;
+	      nextPriority++;
               planes[id].critical = FALSE;
             }
             
@@ -183,4 +188,13 @@ void plane_flying(int* ptrToID){
     }
   }
   pthread_exit(0);
+}
+
+void sortFuel(void){
+
+
+
+
+
+
 }
