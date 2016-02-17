@@ -63,7 +63,7 @@ int main(){
   srand((unsigned) time(&t));
   printf("Using seed %u.\n",(unsigned int)t);
   
-  //Establish mutexes for each runway
+  //Establish mutexes for each plane
   pthread_t threads[numplanes];
   for(i = 0; i < runways; i++){
     runwayOccupied[i] = FALSE;
